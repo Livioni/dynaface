@@ -2,6 +2,8 @@
 
 Dynaface is a computer application and Python library that measures facial symmetry. It utilizes advanced AI for both symmetric and asymmetric faces. AI allows Dynaface to locate 97 facial landmarks automatically to conduct a variety of measures on still images and videos. Researchers can export all data from pictures and videos to CSV/Excel format for further analysis.
 
+[Article about Dynaface at Reinsurance Group of America (RGA)](https://bit.ly/4201i3j)
+
 ![Dynaface Screenshot](https://s3.amazonaws.com/data.heatonresearch.com/images/facial/site/dynaface-1.jpg?v=1)
 
 # Helpful Links
