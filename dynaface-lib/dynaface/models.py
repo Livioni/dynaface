@@ -12,10 +12,20 @@ import torch
 from dynaface.spiga.inference.config import ModelConfig
 from dynaface.spiga.inference.framework import SPIGAFramework
 from dynaface.util import VERIFY_CERTS
-from facenet_pytorch import MTCNN  # type: ignore
-from facenet_pytorch.models.mtcnn import ONet, PNet, RNet  # type: ignore
 from torch import nn
 from torch.nn.functional import interpolate  # type: ignore
+
+try:
+    from facenet_pytorch import MTCNN  # type: ignore
+    from facenet_pytorch.models.mtcnn import ONet, PNet, RNet  # type: ignore
+
+    _FACENET_PYTORCH_AVAILABLE = True
+except ModuleNotFoundError:
+    MTCNN = None  # type: ignore[assignment]
+    ONet = None  # type: ignore[assignment]
+    PNet = None  # type: ignore[assignment]
+    RNet = None  # type: ignore[assignment]
+    _FACENET_PYTORCH_AVAILABLE = False
 
 # Mac M1 issue - hope to remove some day
 # RuntimeError: Adaptive pool MPS: input sizes must be divisible by output sizes.
@@ -32,7 +42,7 @@ EXPECTED_SHA256 = "c18f9c038b65d7486e7f9e081506bc69cbbc5719680eb31b1bafa8235ca6a
 # Global variables (now explicitly typed as Optional)
 _model_path: Optional[str] = None
 _device: str = "?"  # Default to CPU
-mtcnn_model: Optional[Union[MTCNN, "MTCNN2"]] = None
+mtcnn_model: Optional[Any] = None
 spiga_model: Optional[SPIGAFramework] = None
 rembg_session: Optional[Any] = None
 
@@ -48,60 +58,85 @@ def imresample_mps(img: torch.Tensor, sz: Union[int, Tuple[int, ...]]) -> torch.
     return im_data.to("mps")
 
 
-class MTCNN2(MTCNN):
-    def __init__(
-        self,
-        image_size: int = 160,
-        margin: int = 0,
-        min_face_size: int = 20,
-        thresholds: List[float] = [0.6, 0.7, 0.7],
-        factor: float = 0.709,
-        post_process: bool = True,
-        select_largest: bool = True,
-        selection_method: Optional[str] = None,
-        keep_all: bool = False,
-        device: Optional[str] = None,
-        path: str = "",  # now a required string (do not use None)
-    ) -> None:
-        nn.Module.__init__(self)
-        # Don't call the parent constructor, as it initializes MTCNN with default values
-        self.image_size = image_size
-        self.margin = margin
-        self.min_face_size = min_face_size
-        self.thresholds = thresholds
-        self.factor = factor
-        self.post_process = post_process
-        self.select_largest = select_largest
-        self.keep_all = keep_all
-        self.selection_method = selection_method
+if _FACENET_PYTORCH_AVAILABLE:
 
-        self.pnet = PNet(pretrained=False)
-        self.load_weights(self.pnet, os.path.join(path, "pnet.pt"))
-        self.rnet = RNet(pretrained=False)
-        self.load_weights(self.rnet, os.path.join(path, "rnet.pt"))
-        self.onet = ONet(pretrained=False)
-        self.load_weights(self.onet, os.path.join(path, "onet.pt"))
+    class MTCNN2(MTCNN):
+        def __init__(
+            self,
+            image_size: int = 160,
+            margin: int = 0,
+            min_face_size: int = 20,
+            thresholds: List[float] = [0.6, 0.7, 0.7],
+            factor: float = 0.709,
+            post_process: bool = True,
+            select_largest: bool = True,
+            selection_method: Optional[str] = None,
+            keep_all: bool = False,
+            device: Optional[str] = None,
+            path: str = "",  # now a required string (do not use None)
+        ) -> None:
+            nn.Module.__init__(self)
+            self.image_size = image_size
+            self.margin = margin
+            self.min_face_size = min_face_size
+            self.thresholds = thresholds
+            self.factor = factor
+            self.post_process = post_process
+            self.select_largest = select_largest
+            self.keep_all = keep_all
+            self.selection_method = selection_method
 
-        self.device = torch.device("cpu")
-        if device is not None:
-            self.device = torch.device(device)
-            self.to(device)
+            self.pnet = PNet(pretrained=False)
+            self.load_weights(self.pnet, os.path.join(path, "pnet.pt"))
+            self.rnet = RNet(pretrained=False)
+            self.load_weights(self.rnet, os.path.join(path, "rnet.pt"))
+            self.onet = ONet(pretrained=False)
+            self.load_weights(self.onet, os.path.join(path, "onet.pt"))
 
-        if not self.selection_method:
-            self.selection_method = "largest" if self.select_largest else "probability"
+            self.device = torch.device("cpu")
+            if device is not None:
+                self.device = torch.device(device)
+                self.to(device)
 
-    def load_weights(self, net: nn.Module, filename: str) -> None:
-        try:
-            state_dict = cast(Dict[str, torch.Tensor], torch.load(filename, map_location="cpu"))  # type: ignore
-            net.load_state_dict(state_dict)
-        except Exception as e:
-            raise ValueError(f"Error loading model weights from {filename}: {str(e)}")
+            if not self.selection_method:
+                self.selection_method = (
+                    "largest" if self.select_largest else "probability"
+                )
+
+        def load_weights(self, net: nn.Module, filename: str) -> None:
+            try:
+                state_dict = cast(
+                    Dict[str, torch.Tensor],
+                    torch.load(filename, map_location="cpu"),  # type: ignore
+                )
+                net.load_state_dict(state_dict)
+            except Exception as e:
+                raise ValueError(
+                    f"Error loading model weights from {filename}: {str(e)}"
+                )
+
+else:
+
+    class MTCNN2:
+        def __init__(self, *args: Any, **kwargs: Any) -> None:
+            raise ModuleNotFoundError(
+                "No module named 'facenet_pytorch'. "
+                "Install it with `python -m pip install facenet-pytorch` "
+                "or `python -m pip install -r requirements.txt`."
+            )
 
 
 def _init_mtcnn() -> None:
     global mtcnn_model
     if _device == "?":
         raise ValueError("Device not initialized. Call init_models() first.")
+
+    if not _FACENET_PYTORCH_AVAILABLE:
+        raise ModuleNotFoundError(
+            "No module named 'facenet_pytorch'. "
+            "Install it with `python -m pip install facenet-pytorch` "
+            "or `python -m pip install -r requirements.txt`."
+        )
 
     if _device == "mps" and FIX_MPS_ISSUE:
         device = "cpu"

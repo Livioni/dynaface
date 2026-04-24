@@ -5,18 +5,26 @@ from typing import Any, Dict, List, Tuple, Union
 
 import dynaface.spiga.inference.pretreatment as pretreat
 import numpy as np
-import pkg_resources
 import torch
 from dynaface.spiga.inference.config import ModelConfig
 from dynaface.spiga.models.spiga import SPIGA
 from numpy.typing import NDArray
+from importlib import import_module, resources
 
 logger = logging.getLogger(__name__)
 
 # Paths
-weights_path_dft: str = pkg_resources.resource_filename(
-    "dynaface.spiga", "models/weights"
-)
+def _resource_path(package: str, relative_path: str) -> str:
+    try:
+        return os.fspath(resources.files(package).joinpath(relative_path))
+    except Exception:
+        module = import_module(package)
+        if module.__file__ is None:
+            raise
+        return os.path.join(os.path.dirname(module.__file__), relative_path)
+
+
+weights_path_dft: str = _resource_path("dynaface.spiga", "models/weights")
 
 
 class SPIGAFramework:

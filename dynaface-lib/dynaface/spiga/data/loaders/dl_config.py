@@ -3,12 +3,23 @@ import os
 from collections import OrderedDict
 from typing import Any, List, Optional, Tuple
 
-import pkg_resources
+from importlib import import_module, resources
 
-db_img_path = pkg_resources.resource_filename("dynaface", "spiga/data/databases")
-db_anns_path = (
-    pkg_resources.resource_filename("dynaface", "spiga/data/annotations")
-    + "/{database}/{file_name}.json"
+def _resource_path(package: str, relative_path: str) -> str:
+    try:
+        return os.fspath(resources.files(package).joinpath(relative_path))
+    except Exception:
+        module = import_module(package)
+        if module.__file__ is None:
+            raise
+        return os.path.join(os.path.dirname(module.__file__), relative_path)
+
+
+db_img_path = _resource_path("dynaface", "spiga/data/databases")
+db_anns_path = os.path.join(
+    _resource_path("dynaface", "spiga/data/annotations"),
+    "{database}",
+    "{file_name}.json",
 )
 
 

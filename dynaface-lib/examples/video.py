@@ -4,9 +4,15 @@ import os
 import re
 import shutil
 import subprocess
+import sys
 import tempfile
+from pathlib import Path
 
 import cv2
+
+_LIB_DIR = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(_LIB_DIR))
+
 from dynaface.facial import AnalyzeFace
 
 logger = logging.getLogger(__name__)

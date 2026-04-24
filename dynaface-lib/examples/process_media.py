@@ -1,6 +1,11 @@
 import argparse
 import os
+import sys
 import time
+from pathlib import Path
+
+_LIB_DIR = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(_LIB_DIR))
 
 from dynaface.facial import load_face_image
 from dynaface.measures import (

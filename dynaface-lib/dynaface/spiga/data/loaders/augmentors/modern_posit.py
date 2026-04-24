@@ -2,13 +2,23 @@ import os
 from typing import Any, List, Optional, Tuple
 
 import numpy as np
-import pkg_resources
 from numpy.typing import NDArray
+from importlib import import_module, resources
 
 # Model file nomenclature
-model_file_dft: str = (
-    pkg_resources.resource_filename("dynaface.spiga", "data/models3D")
-    + "/mean_face_3D_{num_ldm}.txt"
+def _resource_path(package: str, relative_path: str) -> str:
+    try:
+        return os.fspath(resources.files(package).joinpath(relative_path))
+    except Exception:
+        module = import_module(package)
+        if module.__file__ is None:
+            raise
+        return os.path.join(os.path.dirname(module.__file__), relative_path)
+
+
+model_file_dft: str = os.path.join(
+    _resource_path("dynaface.spiga", "data/models3D"),
+    "mean_face_3D_{num_ldm}.txt",
 )
 
 
