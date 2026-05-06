@@ -7,7 +7,7 @@ sys.path.insert(0, str(_LIB_DIR))
 from dynaface.facial import load_face_image
 from dynaface import facial, measures, models
 
-SOURCE_IMG = "https://data.heatonresearch.com/dynaface/sample/img4-1024-frontal.jpg"
+SOURCE_IMG = "smirk/samples/test_image1.png"
 DEST_IMG = "output.jpg"
 
 # Detect device and download models
